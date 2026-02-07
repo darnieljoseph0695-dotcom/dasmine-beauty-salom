@@ -1,0 +1,7 @@
+{
+  "name": "Dasmine Beauty Saloon",
+  "description": "A high-end beauty salon website featuring an elegant homepage, product gallery, and an owner management portal for uploading images.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
