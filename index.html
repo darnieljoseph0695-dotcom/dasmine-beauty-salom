@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Darnix Checkers</title>
+<style>
+/* Styles same as before: body, background, title, scoreboard, board, cells, pieces */
+body{margin:0;padding:0;font-family:Arial, sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:start;height:100vh;overflow:hidden;position:relative;background-color:#333;}
+#background{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;filter:blur(8px) brightness(0.7);transition:background-image 1s ease-in-out;z-index:0;}
+#title{z-index:2;position:relative;font-size:3em;color:gold;text-shadow:2px 2px 5px black;margin-top:10px;margin-bottom:10px;font-weight:bold;}
+#scoreboard{z-index:2;position:relative;display:flex;justify-content:center;gap:40px;font-size:1.2em;color:white;margin-bottom:10px;}
+#controls{z-index:2;position:relative;margin-bottom:10px;}
+#board{display:grid;grid-template-columns:repeat(8,60px);grid-template-rows:repeat(8,60px);gap:0;border:2px solid #333;background:rgba(255,255,255,0.85);z-index:1;position:relative;}
+.cell{width:60px;height:60px;display:flex;justify-content:center;align-items:center;}
+.black{background-color:#769656;}
+.white{background-color:#eeeed2;}
+.piece{width:45px;height:45px;border-radius:50%;cursor:pointer;display:flex;justify-content:center;align-items:center;font-weight:bold;font-size:18px;color:white;}
+.red{background-color:red;}
+.black-piece{background-color:black;}
+.king{border:2px solid gold;}
+.selected{outline:3px solid yellow;}
+button{margin:0 5px;padding:5px 10px;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div id="background"></div>
+<div id="title">Darnix Checkers</div>
+<div id="scoreboard"><span id="red-score">Red:0</span><span id="black-score">Black:0</span></div>
+<div id="controls">
+<button onclick="setMode('two')">Two Players</button>
+<button onclick="setMode('computer')">Play vs Computer</button>
+<button onclick="setDifficulty('easy')">Easy</button>
+<button onclick="setDifficulty('medium')">Medium</button>
+<button onclick="setDifficulty('hard')">Hard</button>
+<button onclick="setDifficulty('veryhard')">Very Hard</button>
+</div>
+<div id="board"></div>
+
+<script>
+// Game variables
+const board=document.getElementById('board');
+const redScoreEl=document.getElementById('red-score');
+const blackScoreEl=document.getElementById('black-score');
+let selectedPiece=null;
+let turn='red';
+let gameMode='two';
+let difficulty='easy';
+let redScore=0;
+let blackScore=0;
+const boardState=[];
+
+// Set game mode and difficulty
+function setMode(mode){gameMode=mode; resetGame();}
+function setDifficulty(level){difficulty=level; resetGame();}
+
+// Initialize/reset game
+function resetGame(){selectedPiece=null; turn='red'; createBoard(); updateScores();}
+
+// Create board and pieces
+function createBoard(){
+  board.innerHTML=''; boardState.length=0;
+  for(let r=0;r<8;r++){boardState[r]=[];
+    for(let c=0;c<8;c++){
+      const cell=document.createElement('div');
+      cell.classList.add('cell'); if((r+c)%2===0){cell.classList.add('white');} else{
+        cell.classList.add('black');
+        if(r<3){const piece=createPiece('black-piece',r,c); cell.appendChild(piece); boardState[r][c]=piece;}
+        else if(r>4){const piece=createPiece('red',r,c); cell.appendChild(piece); boardState[r][c]=piece;}
+        else boardState[r][c]=null;
+      }
+      cell.dataset.row=r; cell.dataset.col=c;
+      cell.addEventListener('click',()=>cellClick(r,c));
+      board.appendChild(cell);
+    }
+  }
+}
+
+function createPiece(color,r,c){const p=document.createElement('div');p.classList.add('piece',color);p.dataset.row=r;p.dataset.col=c;return p;}
+
+// Handle player click
+function cellClick(r,c){
+  if(gameMode==='computer' && turn==='black') return;
+  const piece=boardState[r][c];
+  if(piece && ((turn==='red' && piece.classList.contains('red')) || (turn==='black' && piece.classList.contains('black-piece')))){
+    if(selectedPiece) selectedPiece.element.classList.remove('selected');
+    selectedPiece={element:piece,row:r,col:c};
+    piece.classList.add('selected'); return;
+  }
+  if(selectedPiece){
+    const valid=isValidMove(selectedPiece.row,selectedPiece.col,r,c);
+    if(valid){movePiece(selectedPiece.row,selectedPiece.col,r,c,valid.capture); selectedPiece.element.classList.remove('selected'); selectedPiece=null;
+      turn=turn==='red'?'black':'red';
+      if(gameMode==='computer' && turn==='black'){setTimeout(computerMove,300);}
+    }
+  }
+}
+
+// Check valid moves
+function isValidMove(fr,fc,tr,tc){
+  const piece=boardState[fr][fc]; if(boardState[tr][tc]) return false;
+  const dir=piece.classList.contains('red')?-1:1;
+  const rd=tr-fr,cd=tc-fc;
+  if(Math.abs(rd)===1 && Math.abs(cd)===1){if(piece.classList.contains('king')||rd===dir) return {capture:null};}
+  if(Math.abs(rd)===2 && Math.abs(cd)===2){
+    const mr=(fr+tr)/2, mc=(fc+tc)/2;
+    const mid=boardState[mr][mc];
+    if(mid && mid.classList.contains(turn==='red'?'black-piece':'red')) return {capture:{row:mr,col:mc}};
+  }
+  return false;
+}
+
+// Move piece
+function movePiece(fr,fc,tr,tc,capture){
+  const piece=boardState[fr][fc];
+  boardState[tr][tc]=piece; boardState[fr][fc]=null;
+  piece.dataset.row=tr; piece.dataset.col=tc;
+  board.children[tr*8+tc].appendChild(piece);
+  if(capture){
+    const captured=boardState[capture.row][capture.col];
+    boardState[capture.row][capture.col]=null;
+    board.children[capture.row*8+capture.col].innerHTML='';
+    if(captured.classList.contains('red')) redScore++; else blackScore++;
+    updateScores();
+  }
+  if((piece.classList.contains('red') && tr===0) || (piece.classList.contains('black-piece') && tr===7)) piece.classList.add('king');
+}
+
+function updateScores(){redScoreEl.textContent=`Red:${redScore}`; blackScoreEl.textContent=`Black:${blackScore}`;}
+
+// Computer AI
+function computerMove(){
+  const moves=[];
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      const p=boardState[r][c];
+      if(p && p.classList.contains('black-piece')){
+        for(let dr=-2;dr<=2;dr++){
+          for(let dc=-2;dc<=2;dc++){
+            const nr=r+dr,nc=c+dc; if(nr<0||nr>=8||nc<0||nc>=8) continue;
+            const valid=isValidMove(r,c,nr,nc); if(valid) moves.push({from:[r,c],to:[nr,nc],capture:valid.capture});
+          }
+        }
+      }
+    }
+  }
+  if(moves.length===0){turn='red';return;}
+  let move;
+  switch(difficulty){
+    case 'easy': move=moves[Math.floor(Math.random()*moves.length)]; break;
+    case 'medium': 
+      const caps=moves.filter(m=>m.capture); move=caps.length>0?caps[Math.floor(Math.random()*caps.length)]:moves[Math.floor(Math.random()*moves.length)]; break;
+    case 'hard':
+      // prioritize capture, king, then moves that block player
+      const capKing=moves.filter(m=>m.capture||isKingMove(m.to[0],m.to[1]));
+      move=capKing.length>0?capKing[Math.floor(Math.random()*capKing.length)]:moves[Math.floor(Math.random()*moves.length)];
+      break;
+    case 'veryhard':
+      // simplified lookahead: prefer capture moves, then king moves, then random
+      const captureMoves=moves.filter(m=>m.capture);
+      if(captureMoves.length>0) move=captureMoves[Math.floor(Math.random()*captureMoves.length)];
+      else{
+        const kingMoves=moves.filter(m=>isKingMove(m.to[0],m.to[1]));
+        move=kingMoves.length>0?kingMoves[Math.floor(Math.random()*kingMoves.length)]:moves[Math.floor(Math.random()*moves.length)];
+      }
+      break;
+    default: move=moves[Math.floor(Math.random()*moves.length)];
+  }
+  movePiece(move.from[0],move.from[1],move.to[0],move.to[1],move.capture);
+  turn='red';
+}
+
+function isKingMove(r){return r===0;} // black becomes king at top
+
+// Background slider
+const bgDiv=document.getElementById('background');
+const backgrounds=[
+  'https://images.unsplash.com/photo-1617196030286-c42b2d90f451?fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1600147129271-c5b90a8c1c69?fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1624964841698-989b258b57d3?fit=crop&w=1200&q=80'
+];
+let bgIndex=0; function changeBG(){bgDiv.style.backgroundImage=`url('${backgrounds[bgIndex]}')`; bgIndex=(bgIndex+1)%backgrounds.length;}
+changeBG(); setInterval(changeBG,5000);
+
+resetGame();
+</script>
+</body>
+</html>
