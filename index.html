@@ -3,187 +3,202 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Darnix Checkers</title>
+<title>Darnix Checkers Pro</title>
 <style>
-/* Styles same as before: body, background, title, scoreboard, board, cells, pieces */
-body{margin:0;padding:0;font-family:Arial, sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:start;height:100vh;overflow:hidden;position:relative;background-color:#333;}
-#background{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;filter:blur(8px) brightness(0.7);transition:background-image 1s ease-in-out;z-index:0;}
-#title{z-index:2;position:relative;font-size:3em;color:gold;text-shadow:2px 2px 5px black;margin-top:10px;margin-bottom:10px;font-weight:bold;}
-#scoreboard{z-index:2;position:relative;display:flex;justify-content:center;gap:40px;font-size:1.2em;color:white;margin-bottom:10px;}
-#controls{z-index:2;position:relative;margin-bottom:10px;}
-#board{display:grid;grid-template-columns:repeat(8,60px);grid-template-rows:repeat(8,60px);gap:0;border:2px solid #333;background:rgba(255,255,255,0.85);z-index:1;position:relative;}
-.cell{width:60px;height:60px;display:flex;justify-content:center;align-items:center;}
-.black{background-color:#769656;}
-.white{background-color:#eeeed2;}
-.piece{width:45px;height:45px;border-radius:50%;cursor:pointer;display:flex;justify-content:center;align-items:center;font-weight:bold;font-size:18px;color:white;}
-.red{background-color:red;}
-.black-piece{background-color:black;}
-.king{border:2px solid gold;}
-.selected{outline:3px solid yellow;}
-button{margin:0 5px;padding:5px 10px;cursor:pointer;}
+body{margin:0;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;background:#111;color:white;overflow:hidden;}
+#background{position:fixed;width:100%;height:100%;background-size:cover;background-position:center;filter:blur(8px) brightness(0.4);z-index:-1;transition:1s;}
+#title{font-size:38px;color:gold;margin-top:10px;text-shadow:0 0 15px black;}
+#status{margin:5px;font-weight:bold;color:#00ffcc;}
+#scoreboard{display:flex;gap:30px;margin:5px;font-size:18px;}
+#top-controls, #bottom-controls{margin:8px;}
+button{padding:6px 14px;margin:3px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;transition:0.3s;}
+#top-controls button{background:#ffcc00;color:black;}
+#bottom-controls button{background:#00ccff;color:black;}
+button:hover{transform:scale(1.05);}
+button.active{background:#00ffcc !important;box-shadow:0 0 15px #00ffcc;}
+#board{display:grid;grid-template-columns:repeat(8,70px);grid-template-rows:repeat(8,70px);margin-top:10px;border:3px solid white;box-shadow:0 0 20px black;}
+.cell{width:70px;height:70px;display:flex;justify-content:center;align-items:center;}
+.white{background:#eee;}
+.black{background:#4b7a3b;}
+.piece{width:50px;height:50px;border-radius:50%;cursor:pointer;display:flex;justify-content:center;align-items:center;font-weight:bold;font-size:18px;color:white;box-shadow:0 0 10px black;}
+.red{background:red;}
+.black-piece{background:black;}
+.king{border:3px solid gold;}
+.selected{outline:4px solid yellow;}
+.move-option{outline:4px solid cyan;}
 </style>
 </head>
 <body>
 
 <div id="background"></div>
-<div id="title">Darnix Checkers</div>
-<div id="scoreboard"><span id="red-score">Red:0</span><span id="black-score">Black:0</span></div>
-<div id="controls">
-<button onclick="setMode('two')">Two Players</button>
-<button onclick="setMode('computer')">Play vs Computer</button>
-<button onclick="setDifficulty('easy')">Easy</button>
-<button onclick="setDifficulty('medium')">Medium</button>
-<button onclick="setDifficulty('hard')">Hard</button>
-<button onclick="setDifficulty('veryhard')">Very Hard</button>
+<div id="title">DARNIX CHECKERS</div>
+
+<div id="top-controls">
+<button id="twoBtn" onclick="setMode('two')">Two Players</button>
+<button id="cpuBtn" onclick="setMode('computer')">Vs Computer</button>
 </div>
+
+<div id="status">Turn: Red</div>
+
+<div id="scoreboard">
+<span id="red-score">Red:0</span>
+<span id="black-score">Black:0</span>
+</div>
+
 <div id="board"></div>
 
+<div id="bottom-controls">
+<div id="difficulty-section" style="display:none;">
+<button id="easyBtn" onclick="setDifficulty('easy')">Easy</button>
+<button id="mediumBtn" onclick="setDifficulty('medium')">Medium</button>
+<button id="hardBtn" onclick="setDifficulty('hard')">Hard</button>
+<button id="veryHardBtn" onclick="setDifficulty('veryhard')">Very Hard</button>
+</div>
+<button onclick="resetGame()">Restart</button>
+</div>
+
 <script>
-// Game variables
 const board=document.getElementById('board');
+const statusDiv=document.getElementById('status');
 const redScoreEl=document.getElementById('red-score');
 const blackScoreEl=document.getElementById('black-score');
-let selectedPiece=null;
-let turn='red';
-let gameMode='two';
-let difficulty='easy';
-let redScore=0;
-let blackScore=0;
-const boardState=[];
 
-// Set game mode and difficulty
-function setMode(mode){gameMode=mode; resetGame();}
-function setDifficulty(level){difficulty=level; resetGame();}
+let boardState=[], selectedPiece=null, turn='red', gameMode='two', difficulty='easy', redScore=0, blackScore=0;
 
-// Initialize/reset game
-function resetGame(){selectedPiece=null; turn='red'; createBoard(); updateScores();}
+function setMode(mode){
+gameMode=mode;
+document.getElementById("twoBtn").classList.remove("active");
+document.getElementById("cpuBtn").classList.remove("active");
+if(mode==="two"){document.getElementById("twoBtn").classList.add("active");document.getElementById("difficulty-section").style.display="none";}
+else{document.getElementById("cpuBtn").classList.add("active");document.getElementById("difficulty-section").style.display="block";}
+resetGame();
+}
 
-// Create board and pieces
+function setDifficulty(level){
+difficulty=level;
+document.querySelectorAll("#difficulty-section button").forEach(btn=>btn.classList.remove("active"));
+document.getElementById(level+"Btn")?.classList.add("active");
+resetGame();
+}
+
+function resetGame(){
+selectedPiece=null; turn='red'; redScore=0; blackScore=0;
+updateScores(); createBoard(); updateStatus();
+}
+
 function createBoard(){
-  board.innerHTML=''; boardState.length=0;
-  for(let r=0;r<8;r++){boardState[r]=[];
-    for(let c=0;c<8;c++){
-      const cell=document.createElement('div');
-      cell.classList.add('cell'); if((r+c)%2===0){cell.classList.add('white');} else{
-        cell.classList.add('black');
-        if(r<3){const piece=createPiece('black-piece',r,c); cell.appendChild(piece); boardState[r][c]=piece;}
-        else if(r>4){const piece=createPiece('red',r,c); cell.appendChild(piece); boardState[r][c]=piece;}
-        else boardState[r][c]=null;
-      }
-      cell.dataset.row=r; cell.dataset.col=c;
-      cell.addEventListener('click',()=>cellClick(r,c));
-      board.appendChild(cell);
-    }
-  }
+board.innerHTML=''; boardState=[];
+for(let r=0;r<8;r++){
+boardState[r]=[];
+for(let c=0;c<8;c++){
+const cell=document.createElement('div'); cell.classList.add('cell');
+if((r+c)%2==0) cell.classList.add('white');
+else{
+cell.classList.add('black');
+if(r<3){boardState[r][c]=createPiece('black-piece'); cell.appendChild(boardState[r][c]);}
+else if(r>4){boardState[r][c]=createPiece('red'); cell.appendChild(boardState[r][c]);}
+else boardState[r][c]=null;
+}
+cell.onclick=()=>handleClick(r,c); board.appendChild(cell);
+}}
 }
 
-function createPiece(color,r,c){const p=document.createElement('div');p.classList.add('piece',color);p.dataset.row=r;p.dataset.col=c;return p;}
+function createPiece(color){const p=document.createElement('div');p.classList.add('piece',color);return p;}
 
-// Handle player click
-function cellClick(r,c){
-  if(gameMode==='computer' && turn==='black') return;
-  const piece=boardState[r][c];
-  if(piece && ((turn==='red' && piece.classList.contains('red')) || (turn==='black' && piece.classList.contains('black-piece')))){
-    if(selectedPiece) selectedPiece.element.classList.remove('selected');
-    selectedPiece={element:piece,row:r,col:c};
-    piece.classList.add('selected'); return;
-  }
-  if(selectedPiece){
-    const valid=isValidMove(selectedPiece.row,selectedPiece.col,r,c);
-    if(valid){movePiece(selectedPiece.row,selectedPiece.col,r,c,valid.capture); selectedPiece.element.classList.remove('selected'); selectedPiece=null;
-      turn=turn==='red'?'black':'red';
-      if(gameMode==='computer' && turn==='black'){setTimeout(computerMove,300);}
-    }
-  }
+function isValidMove(fr,fc,tr,tc,turnCheck=true){
+if(tr<0||tr>7||tc<0||tc>7) return false;
+if(boardState[tr][tc]) return false;
+const piece=boardState[fr][fc]; if(!piece) return false;
+const isKing=piece.classList.contains('king');
+const isRed=piece.classList.contains('red');
+const dir=isRed?-1:1;
+const rd=tr-fr; const cd=tc-fc;
+if(Math.abs(rd)==1 && Math.abs(cd)==1){if(isKing||rd==dir) return {capture:false}; return false;}
+if(Math.abs(rd)==2 && Math.abs(cd)==2){
+const mr=(fr+tr)/2; const mc=(fc+tc)/2; const mid=boardState[mr][mc];
+if(mid && ((turnCheck && mid.classList.contains(turn==='red'?'black-piece':'red')) || (!turnCheck))) return {capture:true,row:mr,col:mc};}
+return false;
 }
 
-// Check valid moves
-function isValidMove(fr,fc,tr,tc){
-  const piece=boardState[fr][fc]; if(boardState[tr][tc]) return false;
-  const dir=piece.classList.contains('red')?-1:1;
-  const rd=tr-fr,cd=tc-fc;
-  if(Math.abs(rd)===1 && Math.abs(cd)===1){if(piece.classList.contains('king')||rd===dir) return {capture:null};}
-  if(Math.abs(rd)===2 && Math.abs(cd)===2){
-    const mr=(fr+tr)/2, mc=(fc+tc)/2;
-    const mid=boardState[mr][mc];
-    if(mid && mid.classList.contains(turn==='red'?'black-piece':'red')) return {capture:{row:mr,col:mc}};
-  }
-  return false;
+function pieceCanCapture(r,c){
+for(let tr=0;tr<8;tr++){for(let tc=0;tc<8;tc++){const valid=isValidMove(r,c,tr,tc); if(valid && valid.capture) return true;}} return false;
 }
 
-// Move piece
-function movePiece(fr,fc,tr,tc,capture){
-  const piece=boardState[fr][fc];
-  boardState[tr][tc]=piece; boardState[fr][fc]=null;
-  piece.dataset.row=tr; piece.dataset.col=tc;
-  board.children[tr*8+tc].appendChild(piece);
-  if(capture){
-    const captured=boardState[capture.row][capture.col];
-    boardState[capture.row][capture.col]=null;
-    board.children[capture.row*8+capture.col].innerHTML='';
-    if(captured.classList.contains('red')) redScore++; else blackScore++;
-    updateScores();
-  }
-  if((piece.classList.contains('red') && tr===0) || (piece.classList.contains('black-piece') && tr===7)) piece.classList.add('king');
+function playerMustCapture(){
+for(let r=0;r<8;r++){for(let c=0;c<8;c++){const piece=boardState[r][c]; if(piece && piece.classList.contains(turn)){if(pieceCanCapture(r,c)) return true;}}} return false;
 }
 
-function updateScores(){redScoreEl.textContent=`Red:${redScore}`; blackScoreEl.textContent=`Black:${blackScore}`;}
+function handleClick(r,c){
+if(gameMode==='computer' && turn==='black') return;
+const piece=boardState[r][c]; const mustCapture=playerMustCapture();
+if(piece && piece.classList.contains(turn)){
+clearHighlights(); selectedPiece={row:r,col:c}; piece.classList.add('selected'); highlightMoves(r,c,mustCapture);}
+else if(selectedPiece){
+const valid=isValidMove(selectedPiece.row,selectedPiece.col,r,c); if(valid){if(mustCapture && !valid.capture) return;
+const stillCapturing=movePiece(selectedPiece.row,selectedPiece.col,r,c,valid); if(stillCapturing) return;
+clearHighlights(); selectedPiece=null; checkWin(); turn=turn==='red'?'black':'red'; updateStatus();
+if(gameMode==='computer' && turn==='black') setTimeout(computerMove,400);}}
+}
 
-// Computer AI
+function highlightMoves(r,c,mustCapture){
+for(let tr=0;tr<8;tr++){for(let tc=0;tc<8;tc++){const valid=isValidMove(r,c,tr,tc);if(valid){if(mustCapture && !valid.capture) continue; board.children[tr*8+tc].classList.add('move-option');}}}}
+function clearHighlights(){document.querySelectorAll('.selected').forEach(e=>e.classList.remove('selected'));document.querySelectorAll('.move-option').forEach(e=>e.classList.remove('move-option'));}
+function movePiece(fr,fc,tr,tc,valid){
+const piece=boardState[fr][fc]; boardState[tr][tc]=piece; boardState[fr][fc]=null; board.children[tr*8+tc].appendChild(piece);
+let didCapture=false; if(valid.capture){didCapture=true; const captured=boardState[valid.row][valid.col]; boardState[valid.row][valid.col]=null; board.children[valid.row*8+valid.col].innerHTML=''; if(captured.classList.contains('red')) blackScore++; else redScore++; updateScores();}
+if(piece.classList.contains('red') && tr==0) piece.classList.add('king');
+if(piece.classList.contains('black-piece') && tr==7) piece.classList.add('king');
+if(didCapture && pieceCanCapture(tr,tc)){selectedPiece={row:tr,col:tc}; clearHighlights(); piece.classList.add('selected'); highlightMoves(tr,tc,true); return true;}
+return false;
+}
+function updateScores(){redScoreEl.textContent="Red:"+redScore; blackScoreEl.textContent="Black:"+blackScore;}
+function updateStatus(){statusDiv.textContent="Turn: "+(turn==='red'?'Red':'Black');}
+function checkWin(){let red=0,black=0;for(let r=0;r<8;r++){for(let c=0;c<8;c++){if(boardState[r][c]){if(boardState[r][c].classList.contains('red')) red++; else black++;}}} if(red==0){alert("Black Wins!"); resetGame();} if(black==0){alert("Red Wins!"); resetGame();}}
+
+// ===== AI COMPUTER =====
 function computerMove(){
-  const moves=[];
-  for(let r=0;r<8;r++){
-    for(let c=0;c<8;c++){
-      const p=boardState[r][c];
-      if(p && p.classList.contains('black-piece')){
-        for(let dr=-2;dr<=2;dr++){
-          for(let dc=-2;dc<=2;dc++){
-            const nr=r+dr,nc=c+dc; if(nr<0||nr>=8||nc<0||nc>=8) continue;
-            const valid=isValidMove(r,c,nr,nc); if(valid) moves.push({from:[r,c],to:[nr,nc],capture:valid.capture});
-          }
-        }
-      }
-    }
-  }
-  if(moves.length===0){turn='red';return;}
-  let move;
-  switch(difficulty){
-    case 'easy': move=moves[Math.floor(Math.random()*moves.length)]; break;
-    case 'medium': 
-      const caps=moves.filter(m=>m.capture); move=caps.length>0?caps[Math.floor(Math.random()*caps.length)]:moves[Math.floor(Math.random()*moves.length)]; break;
-    case 'hard':
-      // prioritize capture, king, then moves that block player
-      const capKing=moves.filter(m=>m.capture||isKingMove(m.to[0],m.to[1]));
-      move=capKing.length>0?capKing[Math.floor(Math.random()*capKing.length)]:moves[Math.floor(Math.random()*moves.length)];
-      break;
-    case 'veryhard':
-      // simplified lookahead: prefer capture moves, then king moves, then random
-      const captureMoves=moves.filter(m=>m.capture);
-      if(captureMoves.length>0) move=captureMoves[Math.floor(Math.random()*captureMoves.length)];
-      else{
-        const kingMoves=moves.filter(m=>isKingMove(m.to[0],m.to[1]));
-        move=kingMoves.length>0?kingMoves[Math.floor(Math.random()*kingMoves.length)]:moves[Math.floor(Math.random()*moves.length)];
-      }
-      break;
-    default: move=moves[Math.floor(Math.random()*moves.length)];
-  }
-  movePiece(move.from[0],move.from[1],move.to[0],move.to[1],move.capture);
-  turn='red';
+let allMoves=[];
+for(let r=0;r<8;r++){for(let c=0;c<8;c++){const p=boardState[r][c]; if(p && p.classList.contains('black-piece')){
+for(let tr=0;tr<8;tr++){for(let tc=0;tc<8;tc++){const valid=isValidMove(r,c,tr,tc); if(valid) allMoves.push({fr:r,fc:c,tr:tr,tc:tc,valid:valid});}}}}}
+if(allMoves.length==0){turn='red'; updateStatus(); return;}
+
+// Forced capture chains
+let captureMoves=allMoves.filter(m=>m.valid.capture); if(captureMoves.length>0) allMoves=captureMoves;
+
+// Heuristic: prioritize capture, king, safe moves
+let bestMove=null;
+let bestScore=-Infinity;
+for(let m of allMoves){
+let score=0;
+if(m.valid.capture) score+=3;
+if(m.tr===0) score+=2;
+if(!wouldBeCaptured(m.tr,m.tc)) score+=1;
+if(score>bestScore){bestScore=score; bestMove=m;}}
+if(!bestMove) bestMove=allMoves[Math.floor(Math.random()*allMoves.length)];
+
+const stillCapturing=movePiece(bestMove.fr,bestMove.fc,bestMove.tr,bestMove.tc,bestMove.valid);
+if(stillCapturing){setTimeout(computerMove,400); return;}
+turn='red'; updateStatus();
 }
 
-function isKingMove(r){return r===0;} // black becomes king at top
+function wouldBeCaptured(r,c){
+for(let rr=0;rr<8;rr++){for(let cc=0;cc<8;cc++){const p=boardState[rr][cc];if(p && p.classList.contains('red')){
+for(let tr=0;tr<8;tr++){for(let tc=0;tc<8;tc++){const v=isValidMove(rr,cc,tr,tc); if(v && v.capture && v.row==r && v.col==c) return true;}}}}}
+return false;
+}
 
-// Background slider
-const bgDiv=document.getElementById('background');
-const backgrounds=[
-  'https://images.unsplash.com/photo-1617196030286-c42b2d90f451?fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1600147129271-c5b90a8c1c69?fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1624964841698-989b258b57d3?fit=crop&w=1200&q=80'
+// ===== BACKGROUND SLIDER =====
+const bg=document.getElementById('background');
+const images=[
+'https://images.unsplash.com/photo-1617196030286-c42b2d90f451?fit=crop&w=1200&q=80',
+'https://images.unsplash.com/photo-1600147129271-c5b90a8c1c69?fit=crop&w=1200&q=80',
+'https://images.unsplash.com/photo-1624964841698-989b258b57d3?fit=crop&w=1200&q=80'
 ];
-let bgIndex=0; function changeBG(){bgDiv.style.backgroundImage=`url('${backgrounds[bgIndex]}')`; bgIndex=(bgIndex+1)%backgrounds.length;}
+let index=0;
+function changeBG(){bg.style.backgroundImage=`url(${images[index]})`; index=(index+1)%images.length;}
 changeBG(); setInterval(changeBG,5000);
 
-resetGame();
+setMode('two');
 </script>
 </body>
 </html>
